@@ -66,19 +66,34 @@ def _make_task(task_id: str, ctx_id: str, state: str,
 
 
 def _match_purchases_sales(submitted: dict) -> tuple[bool, str]:
-    """Check if submitted purchases/sales match agent_b_data records."""
+    """Check if submitted purchases/sales match agent_b_data records.
+
+    Normalizes company names (strip/lower) and amounts (integer Decimal)
+    to handle minor formatting differences between Agent A and Agent B.
+    """
     expected_purchases = _agent_b_data.get("purchases", [])
     expected_sales = _agent_b_data.get("sales", [])
 
     sub_purchases = submitted.get("purchases", [])
     sub_sales = submitted.get("sales", [])
 
-    # Normalize for comparison
+    def _norm_amount(v: Any) -> Decimal:
+        """Normalize an amount to integer-precision Decimal for comparison."""
+        return Decimal(str(v)).quantize(Decimal("1"))
+
     def norm_purchase(p: dict) -> tuple:
-        return (p["company"].strip(), p["date"], str(Decimal(str(p["amount_usd"]))))
+        return (
+            p["company"].strip().lower(),
+            p["date"],
+            _norm_amount(p["amount_usd"]),
+        )
 
     def norm_sale(s: dict) -> tuple:
-        return (s["company"].strip(), s["date"], str(Decimal(str(s["proceeds_usd"]))))
+        return (
+            s["company"].strip().lower(),
+            s["date"],
+            _norm_amount(s["proceeds_usd"]),
+        )
 
     exp_p = {norm_purchase(p) for p in expected_purchases}
     sub_p = {norm_purchase(p) for p in sub_purchases}
